@@ -7,6 +7,18 @@ interface AdminPanelProps {
   onBack: () => void;
 }
 
+// Provider badge lookup (bkash / nagad / rocket / bank).
+// Unknown or missing provider falls back to bKash, matching previous behaviour.
+const PROVIDER_BADGES: Record<string, { label: string; cls: string }> = {
+  bkash: { label: 'bKash', cls: 'bg-pink-100 text-pink-700' },
+  nagad: { label: 'Nagad', cls: 'bg-orange-100 text-orange-700' },
+  rocket: { label: 'Rocket', cls: 'bg-purple-100 text-purple-700' },
+  bank: { label: 'Bank', cls: 'bg-emerald-100 text-emerald-700' },
+};
+
+// Must match LOCK_TIMEOUT_MS in server.cjs (3 minutes). Display only.
+const LOCK_TIMEOUT_MS = 180000;
+
 const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
   const [sessions, setSessions] = useState<CustomerSession[]>([]);
   const [loading, setLoading] = useState(true);
@@ -356,22 +368,33 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
               <tr><td colSpan={5} className="px-3 py-10 text-center text-slate-400 italic">লোড হচ্ছে...</td></tr>
             ) : sessions.length > 0 ? (
               sessions.map((session) => {
-                const isNagad = session.provider === 'nagad';
+                const providerBadge = PROVIDER_BADGES[String(session.provider || '').toLowerCase()] || PROVIDER_BADGES.bkash;
+                // Lock badge only while the worker lock is actually live (server treats it as expired after 3 min).
+                const lockAssignedAt = (session as { assignedAt?: number }).assignedAt;
+                const lockAgeMs = lockAssignedAt ? Date.now() - lockAssignedAt : null;
+                const lockIsLive = !!session.assignedWorker && (lockAgeMs === null || lockAgeMs < LOCK_TIMEOUT_MS);
                 return (
                 <tr key={session.id} className={`bg-white shadow-sm hover:shadow-md transition-all ${session.blocked ? 'opacity-50' : ''}`}>
                   <td className="px-2 py-2 border-y border-l border-slate-100 rounded-l-xl">
                     <div className="flex items-center gap-2">
                       <span
-                        className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${isNagad ? 'bg-orange-100 text-orange-700' : 'bg-pink-100 text-pink-700'}`}
-                        title={isNagad ? 'Nagad' : 'bKash'}
+                        className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${providerBadge.cls}`}
+                        title={providerBadge.label}
                       >
-                        {isNagad ? 'Nagad' : 'bKash'}
+                        {providerBadge.label}
                       </span>
                       <div>
                         <p className="font-bold text-slate-800 text-xs leading-tight">{session.name}</p>
                         <p className="text-[9px] text-slate-400 font-mono leading-tight">{session.id}</p>
-                        {session.assignedWorker && (
-                          <span className="inline-flex items-center gap-0.5 mt-0.5 px-1.5 py-0 rounded text-[8px] font-bold bg-blue-50 text-blue-600 border border-blue-100">
+                        {lockIsLive && (
+                          <span
+                            className="inline-flex items-center gap-0.5 mt-0.5 px-1.5 py-0 rounded text-[8px] font-bold bg-blue-50 text-blue-600 border border-blue-100"
+                            title={
+                              lockAgeMs === null
+                                ? `Worker ${session.assignedWorker} lock active`
+                                : `Worker ${session.assignedWorker} lock active - ${Math.max(0, Math.ceil((LOCK_TIMEOUT_MS - lockAgeMs) / 1000))}s left`
+                            }
+                          >
                             🔒 W{session.assignedWorker}
                           </span>
                         )}
