@@ -227,15 +227,15 @@ function handleGetData(worker, req, res) {
         const isNagad = s.data.provider === 'nagad';
         const isRocket = s.data.provider === 'rocket';
         const isBank = s.data.provider === 'bank';
-        // ROUTING RULE (Ashik 2026-11-16): each provider is fully separate.
-        //   worker 1-30  -> bKash data ONLY
-        //   worker 31-50 -> Nagad data ONLY
-        //   worker 51-60 -> Rocket data ONLY
-        //   worker 61-70 -> Bank data ONLY
+        // ROUTING RULE (Ashik 2026-11-17): each provider is fully separate.
+        //   worker 1-50    -> bKash data ONLY
+        //   worker 51-100  -> Nagad data ONLY
+        //   worker 101-150 -> Rocket data ONLY
+        //   worker 151-200 -> Bank data ONLY
         const wNum = parseInt(worker, 10);
-        if (wNum >= 61) return isBank;
-        if (wNum >= 51) return isRocket;
-        if (wNum >= 31) return isNagad;
+        if (wNum >= 151) return isBank;
+        if (wNum >= 101) return isRocket;
+        if (wNum >= 51) return isNagad;
         return isBkash;
       });
 
